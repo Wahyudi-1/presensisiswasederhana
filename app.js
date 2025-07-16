@@ -1,15 +1,15 @@
 /**
  * =================================================================
- * SCRIPT UTAMA FRONTEND - SISTEM PRESENSI QR CODE (VERSI FINAL)
+ * SCRIPT UTAMA FRONTEND - SISTEM PRESENSI QR (VERSI DIPERBAIKI DENGAN METODE FormData)
  * =================================================================
- * @version 2.2 - Fully Synchronized & Cleaned
+ * @version 2.3 - Solusi 1: Mengadopsi Sistem Kerja Aplikasi Jurnal
  * @author Gemini AI Expert for User
  *
- * PERUBAHAN UTAMA (SINKRONISASI):
- * - [FIX] Fungsi `handleLogin` diubah untuk mengirim payload JSON, bukan FormData,
- *   agar sesuai dengan parser di backend Google Apps Script.
- * - [UPDATE] URL Google Apps Script telah diperbarui.
- * - [CLEANUP] Kode dirapikan dan disederhanakan untuk konsistensi.
+ * PERUBAHAN UTAMA:
+ * - [PERBAIKAN] Mengubah semua pengiriman data POST dari `JSON.stringify` menjadi `new FormData()`.
+ *   Ini membuat semua permintaan menjadi "Simple Request" dan menghindari masalah CORS
+ *   tanpa memerlukan `doOptions` di backend.
+ * - [SINKRONISASI] Backend sekarang akan membaca data dari `e.parameter`, bukan `e.postData.contents`.
  */
 
 // ====================================================================
@@ -17,7 +17,7 @@
 // ====================================================================
 
 // URL Google Apps Script yang telah di-deploy
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxwW35j-aegRrTnrTSYGn_yP0qsCHkreoiKfnQxIgWNA-AlIma6Kplan-RHOIR5dQtMew/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzzAJPDEOJunnq2_ad5ISAzRTDqEO8Tnj9Ch0P727G-moV4Lmo5x0SLxA5Fxnpf83do/exec";
 
 // State Aplikasi Terpusat untuk menyimpan data cache
 const AppState = {
@@ -163,18 +163,15 @@ async function handleLogin() {
     if (!usernameEl.value || !passwordEl.value) {
         return showStatusMessage("Username dan password harus diisi.", 'error');
     }
-
-    // [FIXED] Mengirim payload sebagai JSON agar sinkron dengan backend.
-    const body = JSON.stringify({
-        action: 'login',
-        username: usernameEl.value,
-        password: passwordEl.value
-    });
+    
+    const formData = new FormData();
+    formData.append('action', 'login');
+    formData.append('username', usernameEl.value);
+    formData.append('password', passwordEl.value);
 
     const result = await makeApiCall(SCRIPT_URL, { 
-      method: 'POST', 
-      headers: { 'Content-Type': 'application/json' },
-      body: body 
+        method: 'POST', 
+        body: formData 
     });
 
     if (result) {
@@ -223,12 +220,15 @@ function stopQrScanner(type) {
 
 async function processQrScan(qrData, type) {
     const resultEl = document.getElementById(type === 'datang' ? 'scanResultDatang' : 'scanResultPulang');
-    const body = JSON.stringify({ action: 'recordAttendance', qrData, type });
     
+    const formData = new FormData();
+    formData.append('action', 'recordAttendance');
+    formData.append('qrData', qrData);
+    formData.append('type', type);
+
     const result = await makeApiCall(SCRIPT_URL, { 
-      method: 'POST', 
-      headers: { 'Content-Type': 'application/json' },
-      body: body 
+      method: 'POST',
+      body: formData 
     });
     
     if (result) {
@@ -305,19 +305,18 @@ function renderSiswaTable(siswaArray) {
 }
 
 async function saveSiswa() {
+    const form = document.getElementById('formSiswa');
+    const formData = new FormData(form);
     const oldNisn = document.getElementById('formNisnOld').value;
-    const body = JSON.stringify({
-        action: oldNisn ? 'updateSiswa' : 'addSiswa',
-        NISN: document.getElementById('formNisn').value,
-        Nama: document.getElementById('formNama').value,
-        Kelas: document.getElementById('formKelas').value,
-        oldNisn: oldNisn,
-    });
+
+    formData.append('action', oldNisn ? 'updateSiswa' : 'addSiswa');
+    if (oldNisn) {
+        formData.append('oldNisn', oldNisn);
+    }
     
     const result = await makeApiCall(SCRIPT_URL, { 
-      method: 'POST', 
-      headers: { 'Content-Type': 'application/json' },
-      body: body 
+      method: 'POST',
+      body: formData 
     });
 
     if (result) {
@@ -346,11 +345,13 @@ function resetFormSiswa() {
 
 async function deleteSiswaHandler(nisn) {
     if (confirm(`Yakin ingin menghapus siswa dengan NISN: ${nisn}?`)) {
-        const body = JSON.stringify({ action: 'deleteSiswa', nisn });
+        const formData = new FormData();
+        formData.append('action', 'deleteSiswa');
+        formData.append('nisn', nisn);
+
         const result = await makeApiCall(SCRIPT_URL, { 
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' },
-          body: body 
+          method: 'POST',
+          body: formData 
         });
         if (result) {
             showStatusMessage(result.message, 'success');
@@ -405,23 +406,21 @@ function renderUsersTable(usersArray) {
 }
 
 async function saveUser() {
+    const form = document.getElementById('formPengguna');
+    const formData = new FormData(form);
     const oldUsername = document.getElementById('formUsernameOld').value;
     const password = document.getElementById('formPassword').value;
-    if (!oldUsername && !password) return showStatusMessage('Password wajib diisi untuk pengguna baru.', 'error');
 
-    const body = JSON.stringify({
-        action: oldUsername ? 'updateUser' : 'addUser',
-        nama: document.getElementById('formNamaPengguna').value,
-        username: document.getElementById('formUsername').value,
-        password: password,
-        peran: document.getElementById('formPeran').value,
-        oldUsername: oldUsername,
-    });
+    if (!oldUsername && !password) return showStatusMessage('Password wajib diisi untuk pengguna baru.', 'error');
+    
+    formData.append('action', oldUsername ? 'updateUser' : 'addUser');
+    if (oldUsername) {
+        formData.append('oldUsername', oldUsername);
+    }
 
     const result = await makeApiCall(SCRIPT_URL, { 
-      method: 'POST', 
-      headers: { 'Content-Type': 'application/json' },
-      body: body 
+      method: 'POST',
+      body: formData 
     });
 
     if (result) {
@@ -446,12 +445,15 @@ function editUserHandler(username) {
 async function deleteUserHandler(username) {
     const loggedInUser = JSON.parse(sessionStorage.getItem('loggedInUser'));
     if (loggedInUser?.username === username) return showStatusMessage('Anda tidak dapat menghapus akun Anda sendiri.', 'error');
+    
     if (confirm(`Yakin ingin menghapus pengguna '${username}'?`)) {
-        const body = JSON.stringify({ action: 'deleteUser', username });
+        const formData = new FormData();
+        formData.append('action', 'deleteUser');
+        formData.append('username', username);
+
         const result = await makeApiCall(SCRIPT_URL, { 
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' },
-          body: body 
+          method: 'POST',
+          body: formData
         });
         if (result) {
             showStatusMessage(result.message, 'success');
