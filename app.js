@@ -2,23 +2,25 @@
  * =================================================================
  * SCRIPT UTAMA FRONTEND - SISTEM PRESENSI QR CODE (VERSI REFACTORED)
  * =================================================================
- * @version 2.0 - Refactored with Best Practices
+ * @version 2.1 - Final & Cleaned
  * @author Gemini AI Expert for User
  *
- * PERUBAHAN UTAMA (REFACTOR):
- * - [REFACTOR] State aplikasi disatukan dalam satu objek `AppState`.
- * - [REFACTOR] Membuat fungsi pembantu `makeApiCall` untuk menangani semua request `fetch`,
- *   mengurangi duplikasi kode dan menyederhanakan penanganan error.
- * - [FITUR] Menambahkan umpan balik suara sederhana untuk scan berhasil/gagal.
- * - [OPTIMASI] Logika start/stop scanner yang lebih andal untuk mencegah kebocoran memori.
+ * FITUR LENGKAP:
+ * - [REFACTOR] State aplikasi terpusat dalam `AppState`.
+ * - [REFACTOR] Fungsi `makeApiCall` untuk menangani semua request `fetch`.
+ * - [FITUR] Presensi datang & pulang dengan scan QR, validasi 1x per hari.
+ * - [FITUR] Manajemen Siswa dengan generator QR Code dan fungsi cetak.
+ * - [FITUR] Rekapitulasi presensi dengan filter tanggal dan ekspor Excel.
+ * - [FITUR] Manajemen Pengguna dengan hak akses (Admin/Operator).
+ * - [UX] Umpan balik suara, pesan status, loading indicator, dan toggle password.
  */
 
 // ====================================================================
 // TAHAP 1: KONFIGURASI GLOBAL DAN STATE APLIKASI
 // ====================================================================
 
-// GANTI DENGAN URL GOOGLE APPS SCRIPT ANDA
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby-tvNoDtkx3jID_oqWDItDVWRfQwhVPl0ByWqdD3LX6z2Rp8FuvcexZ1NrWdLMI6dLMw/exec";
+// GANTI DENGAN URL GOOGLE APPS SCRIPT ANDA YANG TELAH DI-DEPLOY
+const SCRIPT_URL = "MASUKKAN_URL_SCRIPT_ANDA_DI_SINI";
 
 // State Aplikasi Terpusat
 const AppState = {
@@ -28,7 +30,6 @@ const AppState = {
 };
 
 let qrScannerDatang, qrScannerPulang;
-let qrCodeInstance = null;
 let isScanning = { datang: false, pulang: false };
 
 // ====================================================================
@@ -52,34 +53,27 @@ function showStatusMessage(message, type = 'info', duration = 5000) {
 }
 
 function playSound(type) {
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
+    try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
 
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-    gainNode.gain.linearRampToValueAtTime(0.5, audioContext.currentTime + 0.05);
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.5, audioContext.currentTime + 0.05);
 
-    if (type === 'success') {
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
-    } else { // error
-        oscillator.type = 'square';
-        oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+        oscillator.type = (type === 'success') ? 'sine' : 'square';
+        oscillator.frequency.setValueAtTime((type === 'success') ? 600 : 200, audioContext.currentTime);
+
+        oscillator.start(audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.3);
+        oscillator.stop(audioContext.currentTime + 0.3);
+    } catch (e) {
+        console.warn("Web Audio API tidak didukung atau gagal.", e);
     }
-
-    oscillator.start(audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.3);
-    oscillator.stop(audioContext.currentTime + 0.3);
 }
 
-/**
- * Wrapper untuk semua pemanggilan API. Menangani loading, parsing, dan error.
- * @param {string} url - URL tujuan.
- * @param {object} options - Opsi untuk fetch (method, body, dll.).
- * @returns {Promise<object|null>} - Data hasil atau null jika gagal.
- */
 async function makeApiCall(url, options = {}) {
     showLoading(true);
     try {
@@ -88,18 +82,35 @@ async function makeApiCall(url, options = {}) {
         
         const result = await response.json();
         if (result.status === 'success') {
-            return result; // Mengembalikan seluruh objek hasil
+            return result;
         } else {
             throw new Error(result.message || 'Terjadi kesalahan pada server.');
         }
     } catch (error) {
         showStatusMessage(`Kesalahan: ${error.message}`, 'error');
-        playSound('error'); // Mainkan suara error jika ada masalah API
+        playSound('error');
         return null;
     } finally {
         showLoading(false);
     }
 }
+
+function setupPasswordToggle() {
+    const toggleIcon = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('password');
+    if (!toggleIcon || !passwordInput) return;
+    
+    const eyeIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>`;
+    const eyeSlashIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.243 4.243l-4.243-4.243" /></svg>`;
+    
+    toggleIcon.innerHTML = eyeIcon;
+    toggleIcon.addEventListener('click', () => {
+        const isPassword = passwordInput.type === 'password';
+        passwordInput.type = isPassword ? 'text' : 'password';
+        toggleIcon.innerHTML = isPassword ? eyeSlashIcon : eyeIcon;
+    });
+}
+
 
 // ====================================================================
 // TAHAP 3: FUNGSI-FUNGSI UTAMA
@@ -112,7 +123,6 @@ function checkAuthentication() {
         const userData = JSON.parse(user);
         const welcomeEl = document.getElementById('welcomeMessage');
         if (welcomeEl) welcomeEl.textContent = `Selamat Datang, ${userData.nama}!`;
-        // Sembunyikan manajemen pengguna jika bukan Admin
         if (userData.peran && userData.peran.toLowerCase() !== 'admin') {
             const btn = document.querySelector('button[data-section="penggunaSection"]');
             if (btn) btn.style.display = 'none';
@@ -125,9 +135,8 @@ function checkAuthentication() {
 async function handleLogin() {
     const usernameEl = document.getElementById('username');
     const passwordEl = document.getElementById('password');
-    if (!usernameEl.value || !passwordEl.value) {
-        return showStatusMessage("Username dan password harus diisi.", 'error');
-    }
+    if (!usernameEl.value || !passwordEl.value) return showStatusMessage("Username dan password harus diisi.", 'error');
+    
     const formData = new FormData();
     formData.append('action', 'login');
     formData.append('username', usernameEl.value);
@@ -150,24 +159,17 @@ function handleLogout() {
 // --- 3.2. LOGIKA PRESENSI QR ---
 function startQrScanner(type) {
     if (isScanning[type]) return;
-
     const scannerId = type === 'datang' ? 'qrScannerDatang' : 'qrScannerPulang';
+    const scanner = new Html5QrcodeScanner(scannerId, { fps: 10, qrbox: { width: 250, height: 250 } }, false);
+    
     const onScanSuccess = (decodedText) => {
-        if (type === 'datang') qrScannerDatang.pause(true);
-        if (type === 'pulang') qrScannerPulang.pause(true);
+        scanner.pause(true);
         processQrScan(decodedText, type);
-        setTimeout(() => {
-            if (type === 'datang' && qrScannerDatang) qrScannerDatang.resume();
-            if (type === 'pulang' && qrScannerPulang) qrScannerPulang.resume();
-        }, 3000);
+        setTimeout(() => scanner.resume(), 3000);
     };
 
-    const scanner = new Html5QrcodeScanner(scannerId, { fps: 10, qrbox: { width: 250, height: 250 } }, false);
     scanner.render(onScanSuccess, () => {});
-    
-    if (type === 'datang') qrScannerDatang = scanner;
-    else qrScannerPulang = scanner;
-    
+    if (type === 'datang') qrScannerDatang = scanner; else qrScannerPulang = scanner;
     isScanning[type] = true;
     document.getElementById(type === 'datang' ? 'scanResultDatang' : 'scanResultPulang').textContent = "Arahkan kamera ke QR Code Siswa";
 }
@@ -190,12 +192,10 @@ async function processQrScan(qrData, type) {
         resultEl.className = 'scan-result success';
         resultEl.innerHTML = `<strong>${result.message}</strong><br>${result.nama} (${qrData}) - ${result.waktu}`;
         const logTable = document.getElementById(type === 'datang' ? 'logTableBodyDatang' : 'logTableBodyPulang');
-        const newRow = logTable.insertRow(0);
-        newRow.innerHTML = `<td>${result.waktu}</td><td>${qrData}</td><td>${result.nama}</td>`;
+        logTable.insertRow(0).innerHTML = `<td>${result.waktu}</td><td>${qrData}</td><td>${result.nama}</td>`;
     } else {
-        // Pesan error sudah ditampilkan oleh makeApiCall
         resultEl.className = 'scan-result error';
-        resultEl.textContent = document.getElementById('statusMessage').textContent; // Ambil pesan error dari status
+        resultEl.textContent = document.getElementById('statusMessage').textContent;
     }
 }
 
@@ -215,22 +215,15 @@ async function loadRekapPresensi() {
         renderRekapTable(AppState.rekap);
         if (AppState.rekap.length > 0) exportButton.style.display = 'inline-block';
     } else {
-        renderRekapTable([]); // Kosongkan tabel jika gagal
+        renderRekapTable([]);
     }
 }
 
 function renderRekapTable(data) {
     const tableBody = document.getElementById('rekapTableBody');
-    tableBody.innerHTML = '';
-    if (data.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Tidak ada data rekap ditemukan.</td></tr>';
-        return;
-    }
-    data.forEach(row => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td data-label="Tanggal">${row.Tanggal}</td><td data-label="NISN">${row.NISN}</td><td data-label="Nama">${row.Nama}</td><td data-label="Datang">${row.WaktuDatang}</td><td data-label="Pulang">${row.WaktuPulang}</td><td data-label="Status">${row.Status}</td>`;
-        tableBody.appendChild(tr);
-    });
+    tableBody.innerHTML = data.length === 0 
+        ? '<tr><td colspan="6" style="text-align: center;">Tidak ada data rekap ditemukan.</td></tr>'
+        : data.map(row => `<tr><td data-label="Tanggal">${row.Tanggal}</td><td data-label="NISN">${row.NISN}</td><td data-label="Nama">${row.Nama}</td><td data-label="Datang">${row.WaktuDatang}</td><td data-label="Pulang">${row.WaktuPulang}</td><td data-label="Status">${row.Status}</td></tr>`).join('');
 }
 
 function exportRekapToExcel() {
@@ -252,36 +245,32 @@ async function loadSiswa() {
 
 function renderSiswaTable(siswaArray) {
     const tableBody = document.getElementById('siswaResultsTableBody');
-    tableBody.innerHTML = '';
-    if (siswaArray.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Data siswa tidak ditemukan.</td></tr>';
-        return;
-    }
-    siswaArray.forEach(siswa => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td data-label="NISN">${siswa.NISN}</td><td data-label="Nama">${siswa.Nama}</td><td data-label="Kelas">${siswa.Kelas}</td>
-            <td data-label="Aksi">
-                <button class="btn btn-sm btn-primary" onclick="generateQRHandler('${siswa.NISN}')">QR Code</button>
-                <button class="btn btn-sm btn-secondary" onclick="editSiswaHandler('${siswa.NISN}')">Ubah</button>
-                <button class="btn btn-sm btn-danger" onclick="deleteSiswaHandler('${siswa.NISN}')">Hapus</button>
-            </td>`;
-        tableBody.appendChild(tr);
-    });
+    tableBody.innerHTML = siswaArray.length === 0
+        ? '<tr><td colspan="4" style="text-align: center;">Data siswa tidak ditemukan.</td></tr>'
+        : siswaArray.map(siswa => `
+            <tr>
+                <td data-label="NISN">${siswa.NISN}</td>
+                <td data-label="Nama">${siswa.Nama}</td>
+                <td data-label="Kelas">${siswa.Kelas}</td>
+                <td data-label="Aksi">
+                    <button class="btn btn-sm btn-primary" onclick="generateQRHandler('${siswa.NISN}')">QR Code</button>
+                    <button class="btn btn-sm btn-secondary" onclick="editSiswaHandler('${siswa.NISN}')">Ubah</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteSiswaHandler('${siswa.NISN}')">Hapus</button>
+                </td>
+            </tr>`).join('');
 }
 
 async function saveSiswa() {
-    const form = document.getElementById('formSiswa');
     const oldNisn = document.getElementById('formNisnOld').value;
-    const action = oldNisn ? 'updateSiswa' : 'addSiswa';
-    const body = {
-        action: action,
+    const body = JSON.stringify({
+        action: oldNisn ? 'updateSiswa' : 'addSiswa',
         NISN: document.getElementById('formNisn').value,
         Nama: document.getElementById('formNama').value,
         Kelas: document.getElementById('formKelas').value,
         oldNisn: oldNisn,
-    };
+    });
     
-    const result = await makeApiCall(SCRIPT_URL, { method: 'POST', body: JSON.stringify(body) });
+    const result = await makeApiCall(SCRIPT_URL, { method: 'POST', body });
     if (result) {
         showStatusMessage(result.message, 'success');
         resetFormSiswa();
@@ -308,8 +297,7 @@ function resetFormSiswa() {
 
 async function deleteSiswaHandler(nisn) {
     if (confirm(`Yakin ingin menghapus siswa dengan NISN: ${nisn}?`)) {
-        const body = JSON.stringify({ action: 'deleteSiswa', nisn });
-        const result = await makeApiCall(SCRIPT_URL, { method: 'POST', body });
+        const result = await makeApiCall(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'deleteSiswa', nisn }) });
         if (result) {
             showStatusMessage(result.message, 'success');
             loadSiswa();
@@ -320,14 +308,12 @@ async function deleteSiswaHandler(nisn) {
 function generateQRHandler(nisn) {
     const siswa = AppState.siswa.find(s => s.NISN == nisn);
     if (!siswa) return;
-    const modal = document.getElementById('qrModal');
-    const canvas = document.getElementById('qrCodeCanvas');
-    canvas.innerHTML = '';
     document.getElementById('qrModalStudentName').textContent = `QR Code: ${siswa.Nama}`;
     document.getElementById('qrModalStudentNisn').textContent = `NISN: ${siswa.NISN}`;
-    
-    qrCodeInstance = new QRCode(canvas, { text: siswa.NISN.toString(), width: 200, height: 200, correctLevel: QRCode.CorrectLevel.H });
-    modal.style.display = 'flex';
+    const canvas = document.getElementById('qrCodeCanvas');
+    canvas.innerHTML = '';
+    new QRCode(canvas, { text: siswa.NISN.toString(), width: 200, height: 200, correctLevel: QRCode.CorrectLevel.H });
+    document.getElementById('qrModal').style.display = 'flex';
 }
 
 function printQrCode() {
@@ -344,46 +330,41 @@ function printQrCode() {
 // --- 3.5. MANAJEMEN PENGGUNA ---
 async function loadUsers() {
     const result = await makeApiCall(`${SCRIPT_URL}?action=getUsers`);
-    if (result) {
-        AppState.users = result.data;
-        renderUsersTable(AppState.users);
-    }
+    if (result) AppState.users = result.data;
+    renderUsersTable(AppState.users);
 }
 
 function renderUsersTable(usersArray) {
     const tableBody = document.getElementById('penggunaResultsTableBody');
-    tableBody.innerHTML = '';
-    if (usersArray.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Belum ada pengguna.</td></tr>';
-        return;
-    }
-    usersArray.forEach(user => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td data-label="Nama">${user.nama}</td><td data-label="Username">${user.username}</td><td data-label="Peran">${user.peran}</td>
-            <td data-label="Aksi">
-                <button class="btn btn-sm btn-secondary" onclick="editUserHandler('${user.username}')">Ubah</button>
-                <button class="btn btn-sm btn-danger" onclick="deleteUserHandler('${user.username}')">Hapus</button>
-            </td>`;
-        tableBody.appendChild(tr);
-    });
+    tableBody.innerHTML = usersArray.length === 0
+        ? '<tr><td colspan="4" style="text-align: center;">Belum ada pengguna.</td></tr>'
+        : usersArray.map(user => `
+            <tr>
+                <td data-label="Nama">${user.nama}</td>
+                <td data-label="Username">${user.username}</td>
+                <td data-label="Peran">${user.peran}</td>
+                <td data-label="Aksi">
+                    <button class="btn btn-sm btn-secondary" onclick="editUserHandler('${user.username}')">Ubah</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteUserHandler('${user.username}')">Hapus</button>
+                </td>
+            </tr>`).join('');
 }
 
 async function saveUser() {
     const oldUsername = document.getElementById('formUsernameOld').value;
-    const action = oldUsername ? 'updateUser' : 'addUser';
     const password = document.getElementById('formPassword').value;
-    if (action === 'addUser' && !password) return showStatusMessage('Password wajib diisi untuk pengguna baru.', 'error');
+    if (!oldUsername && !password) return showStatusMessage('Password wajib diisi untuk pengguna baru.', 'error');
 
-    const body = {
-        action: action,
+    const body = JSON.stringify({
+        action: oldUsername ? 'updateUser' : 'addUser',
         nama: document.getElementById('formNamaPengguna').value,
         username: document.getElementById('formUsername').value,
         password: password,
         peran: document.getElementById('formPeran').value,
         oldUsername: oldUsername,
-    };
+    });
 
-    const result = await makeApiCall(SCRIPT_URL, { method: 'POST', body: JSON.stringify(body) });
+    const result = await makeApiCall(SCRIPT_URL, { method: 'POST', body });
     if (result) {
         showStatusMessage(result.message, 'success');
         resetFormPengguna();
@@ -398,19 +379,16 @@ function editUserHandler(username) {
     document.getElementById('formNamaPengguna').value = user.nama;
     document.getElementById('formUsername').value = user.username;
     document.getElementById('formPeran').value = user.peran;
-    const passwordInput = document.getElementById('formPassword');
-    passwordInput.value = '';
-    passwordInput.placeholder = 'Kosongkan jika tidak diubah';
+    document.getElementById('formPassword').value = '';
     document.getElementById('savePenggunaButton').textContent = 'Update Pengguna';
     document.getElementById('formPengguna').scrollIntoView({ behavior: 'smooth' });
 }
 
 async function deleteUserHandler(username) {
     const loggedInUser = JSON.parse(sessionStorage.getItem('loggedInUser'));
-    if (loggedInUser && loggedInUser.username === username) return showStatusMessage('Anda tidak dapat menghapus akun Anda sendiri.', 'error');
+    if (loggedInUser?.username === username) return showStatusMessage('Anda tidak dapat menghapus akun Anda sendiri.', 'error');
     if (confirm(`Yakin ingin menghapus pengguna '${username}'?`)) {
-        const body = JSON.stringify({ action: 'deleteUser', username });
-        const result = await makeApiCall(SCRIPT_URL, { method: 'POST', body });
+        const result = await makeApiCall(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'deleteUser', username }) });
         if (result) {
             showStatusMessage(result.message, 'success');
             loadUsers();
@@ -422,7 +400,6 @@ function resetFormPengguna() {
     document.getElementById('formPengguna').reset();
     document.getElementById('formUsernameOld').value = '';
     document.getElementById('savePenggunaButton').textContent = 'Simpan Pengguna';
-    document.getElementById('formPassword').placeholder = 'Isi password baru';
 }
 
 // ====================================================================
@@ -432,10 +409,9 @@ function resetFormPengguna() {
 function setupDashboardListeners() {
     document.getElementById('logoutButton')?.addEventListener('click', handleLogout);
 
-    const navButtons = document.querySelectorAll('.section-nav button');
-    navButtons.forEach(button => {
+    document.querySelectorAll('.section-nav button').forEach(button => {
         button.addEventListener('click', () => {
-            navButtons.forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.section-nav button').forEach(btn => btn.classList.remove('active'));
             button.classList.add('active');
             stopQrScanner('datang');
             stopQrScanner('pulang');
@@ -444,29 +420,29 @@ function setupDashboardListeners() {
             document.querySelectorAll('.content-section').forEach(section => {
                 section.style.display = section.id === sectionId ? 'block' : 'none';
             });
-
-            if (sectionId === 'datangSection') startQrScanner('datang');
-            else if (sectionId === 'pulangSection') startQrScanner('pulang');
-            else if (sectionId === 'rekapSection') {
-                const today = new Date().toISOString().slice(0, 10);
-                document.getElementById('rekapFilterTanggalMulai').value = today;
-                document.getElementById('rekapFilterTanggalSelesai').value = today;
-                loadRekapPresensi();
-            }
-            else if (sectionId === 'siswaSection') loadSiswa();
-            else if (sectionId === 'penggunaSection') loadUsers();
+            
+            const actions = {
+                datangSection: () => startQrScanner('datang'),
+                pulangSection: () => startQrScanner('pulang'),
+                rekapSection: () => {
+                    const today = new Date().toISOString().slice(0, 10);
+                    document.getElementById('rekapFilterTanggalMulai').value = today;
+                    document.getElementById('rekapFilterTanggalSelesai').value = today;
+                    loadRekapPresensi();
+                },
+                siswaSection: loadSiswa,
+                penggunaSection: loadUsers,
+            };
+            actions[sectionId]?.();
         });
     });
 
-    // Tombol dan Form Lainnya
     document.getElementById('filterRekapButton')?.addEventListener('click', loadRekapPresensi);
     document.getElementById('exportRekapButton')?.addEventListener('click', exportRekapToExcel);
     document.getElementById('formSiswa')?.addEventListener('submit', (e) => { e.preventDefault(); saveSiswa(); });
     document.getElementById('resetSiswaButton')?.addEventListener('click', resetFormSiswa);
     document.getElementById('formPengguna')?.addEventListener('submit', (e) => { e.preventDefault(); saveUser(); });
     document.getElementById('resetPenggunaButton')?.addEventListener('click', resetFormPengguna);
-
-    // Modal QR
     document.querySelector('#qrModal .modal-close-button')?.addEventListener('click', () => {
         document.getElementById('qrModal').style.display = 'none';
     });
@@ -481,6 +457,7 @@ function initDashboardPage() {
 
 function initLoginPage() {
     checkAuthentication();
+    setupPasswordToggle();
     document.getElementById('loginButton')?.addEventListener('click', handleLogin);
     document.querySelector('.login-box form')?.addEventListener('submit', (e) => { e.preventDefault(); handleLogin(); });
 }
