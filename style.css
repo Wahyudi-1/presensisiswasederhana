@@ -1,0 +1,390 @@
+/**
+ * =================================================================
+ * CSS UTAMA - SISTEM PRESENSI QR
+ * =================================================================
+ * @version 1.0 - Clean & Refactored
+ * @author Gemini AI Expert for User
+ *
+ * Struktur File:
+ * 1. Variabel Global & Reset Dasar
+ * 2. Layout Utama (Header, Navigasi, Main)
+ * 3. Halaman Login
+ * 4. Komponen Umum (Kartu, Form, Tombol, Tabel)
+ * 5. Komponen Spesifik (Hasil Scan, Modal)
+ * 6. Utilities (Pesan Status, Loading Spinner)
+ * 7. Responsive Design
+ */
+
+/* -----------------------------------------------------------------
+   1. VARIABEL GLOBAL & RESET DASAR
+   ----------------------------------------------------------------- */
+:root {
+    --primary-color: #4a90e2;
+    --primary-dark: #357ABD;
+    --secondary-color: #f4f7fc;
+    --accent-color: #50e3c2;
+    --accent-dark: #40b59b;
+    --text-color: #333333;
+    --text-light: #6c757d;
+    --border-color: #dfe4ea;
+    --white-color: #ffffff;
+    --danger-color: #e74c3c;
+    --danger-dark: #c0392b;
+    --success-color: #2ecc71;
+    --success-dark: #27ae60;
+    --font-family: 'Poppins', sans-serif;
+    --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.12);
+    --border-radius: 8px;
+    --transition-speed: 0.3s;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-family);
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    line-height: 1.6;
+}
+
+/* -----------------------------------------------------------------
+   2. LAYOUT UTAMA (HEADER, NAVIGASI, MAIN)
+   ----------------------------------------------------------------- */
+header {
+    background: var(--white-color);
+    padding: 1rem 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+header .logo {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.section-nav {
+    background-color: var(--white-color);
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    text-align: center;
+    position: sticky;
+    top: 68px; /* Sesuaikan dengan tinggi header Anda */
+    z-index: 99;
+}
+
+.section-nav button {
+    margin: 0.25rem 0.5rem;
+    background-color: transparent;
+    color: var(--text-light);
+    font-weight: 500;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 0.5rem 0.25rem;
+    border-radius: 0;
+    transition: color var(--transition-speed), border-color var(--transition-speed);
+}
+
+.section-nav button:hover {
+    color: var(--primary-dark);
+    transform: none;
+    box-shadow: none;
+}
+
+.section-nav button.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+    font-weight: 600;
+}
+
+main.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1.5rem;
+}
+
+/* -----------------------------------------------------------------
+   3. HALAMAN LOGIN
+   ----------------------------------------------------------------- */
+.login-page-v2 {
+    display: grid;
+    place-items: center;
+    min-height: 100vh;
+    padding: 20px;
+    background-color: var(--secondary-color);
+}
+
+.login-box {
+    width: 100%;
+    max-width: 900px;
+    min-height: 550px;
+    background: var(--white-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    overflow: hidden;
+}
+
+.login-illustration {
+    background-color: #eef5ff;
+    padding: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: var(--primary-dark);
+}
+
+.login-form-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 30px;
+}
+
+.login-form-content {
+    width: 100%;
+    max-width: 350px;
+}
+
+/* -----------------------------------------------------------------
+   4. KOMPONEN UMUM (KARTU, FORM, TOMBOL, TABEL)
+   ----------------------------------------------------------------- */
+.card {
+    background: var(--white-color);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow);
+    transition: box-shadow var(--transition-speed), transform var(--transition-speed);
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+}
+
+.card-header {
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.form-group { margin-bottom: 1.2rem; }
+.form-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-light); }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; }
+.form-grid .form-group-full { grid-column: 1 / -1; }
+.form-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; }
+.form-actions { grid-column: 1 / -1; display: flex; gap: 1rem; margin-top: 1rem; }
+.form-helper-text { font-size: 0.8rem; color: var(--text-light); margin-top: 5px; display: inline-block; }
+
+input, select, textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    font-family: var(--font-family);
+    font-size: 1rem;
+    transition: border-color var(--transition-speed), box-shadow var(--transition-speed);
+}
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.2);
+}
+
+.btn {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-family: var(--font-family);
+    font-size: 1rem;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    transition: all 0.2s ease-in-out;
+}
+.btn:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+.btn:active { transform: translateY(0); box-shadow: none; }
+.btn-primary { background-color: var(--primary-color); color: var(--white-color); }
+.btn-primary:hover { background-color: var(--primary-dark); }
+.btn-accent { background-color: var(--accent-color); color: var(--text-color); }
+.btn-accent:hover { background-color: var(--accent-dark); }
+.btn-success { background-color: var(--success-color); color: var(--white-color); }
+.btn-success:hover { background-color: var(--success-dark); }
+.btn-danger { background-color: var(--danger-color); color: var(--white-color); }
+.btn-danger:hover { background-color: var(--danger-dark); }
+.btn-secondary { background-color: #f8f9fa; color: var(--text-color); border: 1px solid var(--border-color); }
+.btn-secondary:hover { background-color: #e9ecef; }
+.btn-block { width: 100%; display: block; }
+.btn-sm { padding: 0.25rem 0.6rem; font-size: 0.875rem; margin: 0 2px; }
+
+.table-container { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+thead { background-color: #f8f9fa; }
+th, td { padding: 0.8rem 1rem; text-align: left; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
+th { font-weight: 600; color: var(--text-light); }
+tbody tr:hover { background-color: var(--secondary-color); }
+
+/* -----------------------------------------------------------------
+   5. KOMPONEN SPESIFIK (Hasil Scan, Modal, Password Toggle)
+   ----------------------------------------------------------------- */
+.scan-result {
+    text-align: center;
+    padding: 1rem;
+    margin-top: 1rem;
+    border-radius: var(--border-radius);
+    font-weight: 500;
+    border: 1px solid var(--border-color);
+    background-color: var(--secondary-color);
+    transition: background-color 0.3s, color 0.3s;
+}
+.scan-result.success { background-color: #d4edda; color: #155724; border-color: #c3e6cb; }
+.scan-result.error { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1001;
+    backdrop-filter: blur(3px);
+}
+.modal-content { position: relative; max-width: 400px; width: 90%; text-align: center; }
+.modal-close-button {
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--text-light);
+    cursor: pointer;
+    line-height: 1;
+}
+.modal-close-button:hover { color: var(--text-color); }
+
+.password-wrapper { position: relative; }
+.toggle-password-icon {
+    position: absolute;
+    top: 50%;
+    right: 15px;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #888;
+    user-select: none;
+    display: flex;
+    align-items: center;
+}
+.password-wrapper input { padding-right: 45px; }
+.toggle-password-icon svg { width: 20px; height: 20px; }
+
+/* -----------------------------------------------------------------
+   6. UTILITIES (PESAN STATUS, LOADING SPINNER)
+   ----------------------------------------------------------------- */
+.status-message {
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border-radius: var(--border-radius);
+    display: none;
+    border: 1px solid transparent;
+    text-align: center;
+    font-weight: 500;
+}
+.status-message.success { background-color: #d4edda; color: #155724; border-color: #c3e6cb; }
+.status-message.error { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }
+.status-message.info { background-color: #cce5ff; color: #004085; border-color: #b8daff; }
+
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.75);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1002;
+    backdrop-filter: blur(2px);
+}
+.spinner {
+    border: 5px solid var(--secondary-color);
+    border-top: 5px solid var(--primary-color);
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* -----------------------------------------------------------------
+   7. RESPONSIVE DESIGN
+   ----------------------------------------------------------------- */
+@media (max-width: 850px) {
+    .login-box { grid-template-columns: 1fr; max-width: 450px; min-height: 0; }
+    .login-illustration { display: none; }
+    .login-form-container { padding: 50px 30px; }
+}
+
+@media (max-width: 767px) {
+    .form-grid, .form-container { grid-template-columns: 1fr; gap: 0 1.5rem; }
+    .form-actions { flex-direction: column; }
+    
+    .section-nav {
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+        padding: 0.5rem 0;
+        scrollbar-width: none;
+    }
+    .section-nav::-webkit-scrollbar { display: none; }
+    .section-nav button { display: inline-block; margin: 0 0.75rem; }
+    header, main.container { padding: 1rem; }
+
+    table thead { display: none; }
+    table tr {
+        display: block;
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        background: var(--white-color);
+    }
+    table td {
+        display: block;
+        text-align: right;
+        padding-left: 50%;
+        position: relative;
+        border-bottom: 1px solid var(--border-color);
+    }
+    table td:last-child { border-bottom: none; }
+    table td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 1rem;
+        width: calc(50% - 2rem);
+        text-align: left;
+        font-weight: 600;
+        color: var(--text-color);
+    }
+}
