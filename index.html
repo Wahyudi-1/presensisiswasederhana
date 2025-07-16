@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <!-- ========================================================== -->
+    <!-- METADATA & KONFIGURASI HALAMAN                             -->
+    <!-- ========================================================== -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Sistem Presensi QR</title>
+
+    <!-- ========================================================== -->
+    <!-- STYLESHEETS & FONTS                                        -->
+    <!-- ========================================================== -->
+    
+    <!-- 1. Google Fonts (Poppins) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- 2. Main Stylesheet (style.css) -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- 3. Favicon (Ikon Tab Browser) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✅</text></svg>">
+</head>
+
+<body class="login-page-v2">
+
+    <!-- ========================================================== -->
+    <!-- MAIN LOGIN CONTAINER                                       -->
+    <!-- ========================================================== -->
+    <div class="login-box">
+        
+        <!-- Kolom Kiri: Ilustrasi & Pesan Selamat Datang -->
+        <div class="login-illustration">
+            <div class="illustration-content">
+                <!-- Ikon SVG yang mewakili QR Code dan Checkmark -->
+                <svg width="150" height="150" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M4 4h6v6H4V4z" fill="#a8c7fa"/><path d="M4 14h6v6H4v-6z" fill="#a8c7fa"/><path d="M14 4h6v6h-6V4z" fill="#a8c7fa"/>
+                    <path d="M14 14h1v1h-1v-1z" fill="#4a90e2"/><path d="M16 14h1v1h-1v-1z" fill="#4a90e2"/><path d="M14 16h1v1h-1v-1z" fill="#4a90e2"/>
+                    <path d="M18 14h2v2h-2v-2z" fill="#4a90e2"/><path d="M14 18h2v2h-2v-2z" fill="#4a90e2"/><path d="M17 17h3v3h-3v-3z" fill="#4a90e2"/>
+                    <path d="M12 12c-3.3137 0-6 2.6863-6 6s2.6863 6 6 6 6-2.6863 6-6-2.6863-6-6-6zm-1.4697 8.0303l-2.25-2.25.7071-.7071 1.5426 1.5426 3.5426-3.5426.7071.7071-4.25 4.25z" fill="#2ecc71"/>
+                </svg>
+                <h3>Sistem Presensi Siswa</h3>
+                <p>Otomatis, cepat, dan akurat dengan teknologi QR Code.</p>
+            </div>
+        </div>
+        
+        <!-- Kolom Kanan: Form Login -->
+        <div class="login-form-container">
+            <div class="login-form-content">
+                
+                <h2 class="logo">Presensi QR</h2>
+                <p style="color: var(--text-light); margin-bottom: 25px;">Silakan masuk untuk melanjutkan.</p>
+                
+                <!-- Form dibuat agar submit dengan tombol Enter juga berfungsi -->
+                <form onsubmit="event.preventDefault(); handleLogin();">
+                    
+                    <div class="form-group">
+                        <label for="username">Username</label>
+                        <input type="text" id="username" placeholder="Masukkan username Anda" required autocomplete="username">
+                    </div>
+                    
+                    <!-- Wrapper untuk input password dan ikon toggle -->
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="password" placeholder="Masukkan password Anda" required autocomplete="current-password">
+                            <!-- Ikon toggle akan di-generate oleh JavaScript -->
+                            <span id="togglePassword" class="toggle-password-icon"></span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group" style="margin-top: 2rem;">
+                        <!-- Tombol Login utama. Tipe `submit` agar bisa di-trigger oleh Enter -->
+                        <button type="submit" id="loginButton" class="btn btn-primary btn-block">Login</button>
+                    </div>
+                </form>
+                
+                <!-- Elemen untuk menampilkan pesan status (error/sukses) -->
+                <div id="statusMessage" class="status-message" style="display: none; margin-top: 15px;"></div>
+            </div>
+        </div>
+
+    </div> <!-- End of .login-box -->
+
+    <!-- ========================================================== -->
+    <!-- ELEMEN GLOBAL (LOADING OVERLAY)                            -->
+    <!-- ========================================================== -->
+    <div id="loadingIndicator" class="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- ========================================================== -->
+    <!-- JAVASCRIPT LIBRARIES & SCRIPT                              -->
+    <!-- Ditempatkan di akhir body untuk rendering halaman yg lebih cepat -->
+    <!-- ========================================================== -->
+    
+    <!-- Script utama aplikasi -->
+    <script src="app.js"></script>
+
+</body>
+</html>
