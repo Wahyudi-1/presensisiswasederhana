@@ -1,34 +1,32 @@
 /**
  * =================================================================
- * SCRIPT UTAMA FRONTEND - SISTEM PRESENSI QR CODE (VERSI REFACTORED)
+ * SCRIPT UTAMA FRONTEND - SISTEM PRESENSI QR CODE (VERSI FINAL)
  * =================================================================
- * @version 2.1 - Final & Cleaned
+ * @version 2.2 - Fully Synchronized & Cleaned
  * @author Gemini AI Expert for User
  *
- * FITUR LENGKAP:
- * - [REFACTOR] State aplikasi terpusat dalam `AppState`.
- * - [REFACTOR] Fungsi `makeApiCall` untuk menangani semua request `fetch`.
- * - [FITUR] Presensi datang & pulang dengan scan QR, validasi 1x per hari.
- * - [FITUR] Manajemen Siswa dengan generator QR Code dan fungsi cetak.
- * - [FITUR] Rekapitulasi presensi dengan filter tanggal dan ekspor Excel.
- * - [FITUR] Manajemen Pengguna dengan hak akses (Admin/Operator).
- * - [UX] Umpan balik suara, pesan status, loading indicator, dan toggle password.
+ * PERUBAHAN UTAMA (SINKRONISASI):
+ * - [FIX] Fungsi `handleLogin` diubah untuk mengirim payload JSON, bukan FormData,
+ *   agar sesuai dengan parser di backend Google Apps Script.
+ * - [UPDATE] URL Google Apps Script telah diperbarui.
+ * - [CLEANUP] Kode dirapikan dan disederhanakan untuk konsistensi.
  */
 
 // ====================================================================
 // TAHAP 1: KONFIGURASI GLOBAL DAN STATE APLIKASI
 // ====================================================================
 
-// GANTI DENGAN URL GOOGLE APPS SCRIPT ANDA YANG TELAH DI-DEPLOY
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyRhcwGwZgh2xNWRyyYXEQvmSZ-1KgDsz_EpCXBoeAYVYhoJOw49aiQcPNgD1LCO-G1Ug/exec";
+// URL Google Apps Script yang telah di-deploy
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxOSUhp93Qwv1zG52HONrMMN0blSuOk3bPOE-mHUAqwEwF8s2ko2w82zPmNZ0w0XALZCw/exec";
 
-// State Aplikasi Terpusat
+// State Aplikasi Terpusat untuk menyimpan data cache
 const AppState = {
     siswa: [],
     users: [],
     rekap: [],
 };
 
+// Variabel untuk instance QR Scanner
 let qrScannerDatang, qrScannerPulang;
 let isScanning = { datang: false, pulang: false };
 
@@ -36,36 +34,53 @@ let isScanning = { datang: false, pulang: false };
 // TAHAP 2: FUNGSI-FUNGSI PEMBANTU (HELPERS)
 // ====================================================================
 
+/**
+ * Menampilkan atau menyembunyikan indikator loading.
+ * @param {boolean} isLoading - True untuk menampilkan, false untuk menyembunyikan.
+ */
 function showLoading(isLoading) {
     const loader = document.getElementById('loadingIndicator');
-    if (loader) loader.style.display = isLoading ? 'flex' : 'none';
+    if (loader) {
+        loader.style.display = isLoading ? 'flex' : 'none';
+    }
 }
 
+/**
+ * Menampilkan pesan status di bagian atas halaman.
+ * @param {string} message - Pesan yang akan ditampilkan.
+ * @param {string} type - Tipe pesan ('success', 'error', 'info').
+ * @param {number} duration - Durasi tampilan pesan dalam milidetik.
+ */
 function showStatusMessage(message, type = 'info', duration = 5000) {
     const statusEl = document.getElementById('statusMessage');
-    if (!statusEl) { alert(message); return; }
-    
+    if (!statusEl) {
+        alert(message);
+        return;
+    }
     statusEl.textContent = message;
     statusEl.className = `status-message ${type}`;
     statusEl.style.display = 'block';
     window.scrollTo(0, 0);
-    setTimeout(() => { statusEl.style.display = 'none'; }, duration);
+    setTimeout(() => {
+        statusEl.style.display = 'none';
+    }, duration);
 }
 
+/**
+ * Memainkan suara sederhana untuk umpan balik UX.
+ * @param {string} type - Tipe suara ('success' atau 'error').
+ */
 function playSound(type) {
     try {
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
         const oscillator = audioContext.createOscillator();
         const gainNode = audioContext.createGain();
-
         oscillator.connect(gainNode);
         gainNode.connect(audioContext.destination);
         gainNode.gain.setValueAtTime(0, audioContext.currentTime);
         gainNode.gain.linearRampToValueAtTime(0.5, audioContext.currentTime + 0.05);
-
         oscillator.type = (type === 'success') ? 'sine' : 'square';
         oscillator.frequency.setValueAtTime((type === 'success') ? 600 : 200, audioContext.currentTime);
-
         oscillator.start(audioContext.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.3);
         oscillator.stop(audioContext.currentTime + 0.3);
@@ -74,12 +89,19 @@ function playSound(type) {
     }
 }
 
+/**
+ * Wrapper untuk semua pemanggilan API. Menangani loading, parsing, dan error.
+ * @param {string} url - URL tujuan.
+ * @param {object} options - Opsi untuk fetch (method, body, dll.).
+ * @returns {Promise<object|null>} - Data hasil atau null jika gagal.
+ */
 async function makeApiCall(url, options = {}) {
     showLoading(true);
     try {
         const response = await fetch(url, options);
-        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-        
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
         const result = await response.json();
         if (result.status === 'success') {
             return result;
@@ -95,6 +117,9 @@ async function makeApiCall(url, options = {}) {
     }
 }
 
+/**
+ * Mengatur fungsionalitas untuk ikon "lihat password".
+ */
 function setupPasswordToggle() {
     const toggleIcon = document.getElementById('togglePassword');
     const passwordInput = document.getElementById('password');
@@ -135,14 +160,23 @@ function checkAuthentication() {
 async function handleLogin() {
     const usernameEl = document.getElementById('username');
     const passwordEl = document.getElementById('password');
-    if (!usernameEl.value || !passwordEl.value) return showStatusMessage("Username dan password harus diisi.", 'error');
-    
-    const formData = new FormData();
-    formData.append('action', 'login');
-    formData.append('username', usernameEl.value);
-    formData.append('password', passwordEl.value);
+    if (!usernameEl.value || !passwordEl.value) {
+        return showStatusMessage("Username dan password harus diisi.", 'error');
+    }
 
-    const result = await makeApiCall(SCRIPT_URL, { method: 'POST', body: formData });
+    // [FIXED] Mengirim payload sebagai JSON agar sinkron dengan backend.
+    const body = JSON.stringify({
+        action: 'login',
+        username: usernameEl.value,
+        password: passwordEl.value
+    });
+
+    const result = await makeApiCall(SCRIPT_URL, { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' },
+      body: body 
+    });
+
     if (result) {
         sessionStorage.setItem('loggedInUser', JSON.stringify(result.data));
         window.location.href = 'dashboard.html';
@@ -177,15 +211,25 @@ function startQrScanner(type) {
 function stopQrScanner(type) {
     const scanner = type === 'datang' ? qrScannerDatang : qrScannerPulang;
     if (scanner && isScanning[type]) {
-        scanner.clear().catch(err => console.error(`Gagal menghentikan scanner ${type}:`, err));
-        isScanning[type] = false;
+        try {
+            scanner.clear().catch(err => console.error(`Gagal menghentikan scanner ${type}:`, err));
+        } catch(e) {
+            console.error('Error saat membersihkan scanner:', e);
+        } finally {
+            isScanning[type] = false;
+        }
     }
 }
 
 async function processQrScan(qrData, type) {
     const resultEl = document.getElementById(type === 'datang' ? 'scanResultDatang' : 'scanResultPulang');
     const body = JSON.stringify({ action: 'recordAttendance', qrData, type });
-    const result = await makeApiCall(SCRIPT_URL, { method: 'POST', body });
+    
+    const result = await makeApiCall(SCRIPT_URL, { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' },
+      body: body 
+    });
     
     if (result) {
         playSound('success');
@@ -270,7 +314,12 @@ async function saveSiswa() {
         oldNisn: oldNisn,
     });
     
-    const result = await makeApiCall(SCRIPT_URL, { method: 'POST', body });
+    const result = await makeApiCall(SCRIPT_URL, { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' },
+      body: body 
+    });
+
     if (result) {
         showStatusMessage(result.message, 'success');
         resetFormSiswa();
@@ -297,7 +346,12 @@ function resetFormSiswa() {
 
 async function deleteSiswaHandler(nisn) {
     if (confirm(`Yakin ingin menghapus siswa dengan NISN: ${nisn}?`)) {
-        const result = await makeApiCall(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'deleteSiswa', nisn }) });
+        const body = JSON.stringify({ action: 'deleteSiswa', nisn });
+        const result = await makeApiCall(SCRIPT_URL, { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' },
+          body: body 
+        });
         if (result) {
             showStatusMessage(result.message, 'success');
             loadSiswa();
@@ -364,7 +418,12 @@ async function saveUser() {
         oldUsername: oldUsername,
     });
 
-    const result = await makeApiCall(SCRIPT_URL, { method: 'POST', body });
+    const result = await makeApiCall(SCRIPT_URL, { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' },
+      body: body 
+    });
+
     if (result) {
         showStatusMessage(result.message, 'success');
         resetFormPengguna();
@@ -388,7 +447,12 @@ async function deleteUserHandler(username) {
     const loggedInUser = JSON.parse(sessionStorage.getItem('loggedInUser'));
     if (loggedInUser?.username === username) return showStatusMessage('Anda tidak dapat menghapus akun Anda sendiri.', 'error');
     if (confirm(`Yakin ingin menghapus pengguna '${username}'?`)) {
-        const result = await makeApiCall(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'deleteUser', username }) });
+        const body = JSON.stringify({ action: 'deleteUser', username });
+        const result = await makeApiCall(SCRIPT_URL, { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' },
+          body: body 
+        });
         if (result) {
             showStatusMessage(result.message, 'success');
             loadUsers();
@@ -458,8 +522,10 @@ function initDashboardPage() {
 function initLoginPage() {
     checkAuthentication();
     setupPasswordToggle();
-    document.getElementById('loginButton')?.addEventListener('click', handleLogin);
-    document.querySelector('.login-box form')?.addEventListener('submit', (e) => { e.preventDefault(); handleLogin(); });
+    document.querySelector('.login-box form')?.addEventListener('submit', (e) => { 
+        e.preventDefault(); 
+        handleLogin(); 
+    });
 }
 
 // ====================================================================
