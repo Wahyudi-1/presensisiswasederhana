@@ -20,7 +20,7 @@
 // ====================================================================
 
 // GANTI DENGAN URL GOOGLE APPS SCRIPT ANDA YANG TELAH DI-DEPLOY
-const SCRIPT_URL = "MASUKKAN_URL_SCRIPT_ANDA_DI_SINI";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyRhcwGwZgh2xNWRyyYXEQvmSZ-1KgDsz_EpCXBoeAYVYhoJOw49aiQcPNgD1LCO-G1Ug/exec";
 
 // State Aplikasi Terpusat
 const AppState = {
