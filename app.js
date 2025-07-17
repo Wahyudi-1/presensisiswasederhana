@@ -17,7 +17,7 @@
 // ====================================================================
 
 // URL Google Apps Script yang telah di-deploy
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwZOjGUpZ79p07FsQz24l9dyjQXB6VZqdzkLw07A1WZL8n5CYpn0V0gyLs-74FMLBWZfg/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzG7R0mSAI6kg4QIcy3t3QjNEkzrrO8NktwczXraaOyCSALaHfB0gnmFSrrHGXy0ccEKw/exec";
 
 // State Aplikasi Terpusat untuk menyimpan data cache
 const AppState = {
