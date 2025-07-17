@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Sistem Presensi QR</title>
+    <title>Dashboard - Sistem Kedisiplinan Siswa</title>
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,7 +18,7 @@
 </head>
 <body>
     <header>
-        <div class="logo">Sistem Presensi QR</div>
+        <div class="logo">Sistem Kedisiplinan Siswa</div>
         <nav>
             <span id="welcomeMessage" style="margin-right: 20px; color: var(--text-light);">Memuat...</span>
             <button id="logoutButton" class="btn btn-danger">Logout</button>
@@ -29,6 +29,8 @@
         <button data-section="datangSection" class="btn btn-nav">Presensi Datang</button>
         <button data-section="pulangSection" class="btn btn-nav">Presensi Pulang</button>
         <button data-section="rekapSection" class="btn btn-nav">Rekap Presensi</button>
+        <!-- [PERUBAHAN] Menambahkan tombol navigasi baru -->
+        <button data-section="disiplinSection" class="btn btn-nav">Catatan Disiplin</button>
         <button data-section="siswaSection" class="btn btn-nav">Manajemen Siswa</button>
         <button data-section="penggunaSection" class="btn btn-nav">Manajemen Pengguna</button>
     </nav>
@@ -103,7 +105,77 @@
         </div>
 
         <!-- ====================================================== -->
-        <!-- Bagian 4: MANAJEMEN SISWA                              -->
+        <!-- [BARU] Bagian 4: CATATAN KEDISIPLINAN                    -->
+        <!-- ====================================================== -->
+        <div id="disiplinSection" class="content-section" style="display: none;">
+            <div class="card">
+                <div class="card-header">Input Catatan Kedisiplinan Siswa</div>
+                <form id="formDisiplin">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="nisnDisiplinInput">NISN Siswa</label>
+                            <input type="number" id="nisnDisiplinInput" name="nisn" placeholder="Masukkan NISN dan tekan Tab" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Nama Siswa</label>
+                            <input type="text" id="namaSiswaDisiplin" disabled placeholder="Nama siswa akan muncul di sini">
+                        </div>
+                    </div>
+                    <hr style="margin: 1.5rem 0; border: 0; border-top: 1px solid var(--border-color);">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="tingkatDisiplinInput">Tingkat Pelanggaran</label>
+                            <input list="tingkatList" id="tingkatDisiplinInput" name="tingkat" placeholder="Pilih atau ketik tingkat" required>
+                            <datalist id="tingkatList">
+                                <!-- Opsi akan diisi oleh JavaScript -->
+                            </datalist>
+                        </div>
+                        <div class="form-group">
+                            <label for="deskripsiDisiplinInput">Deskripsi Pelanggaran</label>
+                            <input list="deskripsiList" id="deskripsiDisiplinInput" name="deskripsi" placeholder="Pilih atau ketik deskripsi" required>
+                            <datalist id="deskripsiList">
+                                <!-- Opsi akan diisi oleh JavaScript -->
+                            </datalist>
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+                        <button type="submit" id="submitDisiplinButton" class="btn btn-primary">Kumpulkan Catatan</button>
+                        <button type="button" id="exportDisiplinButton" class="btn btn-success" style="display: none;">Export Riwayat Siswa</button>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="card" style="margin-top: 2rem;">
+                 <div class="card-header">Riwayat Kedisiplinan Siswa</div>
+                 <div class="form-grid">
+                     <div class="form-group">
+                         <label for="searchNisnDisiplin">Cari Riwayat berdasarkan NISN</label>
+                         <input type="number" id="searchNisnDisiplin" placeholder="Ketik NISN untuk mencari riwayat">
+                     </div>
+                     <div class="form-group" style="align-self: end;">
+                         <button type="button" id="searchDisiplinButton" class="btn btn-secondary">Cari</button>
+                     </div>
+                 </div>
+                 <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Tanggal</th>
+                                <th>Tingkat</th>
+                                <th>Deskripsi</th>
+                                <th>Poin</th>
+                            </tr>
+                        </thead>
+                        <tbody id="riwayatDisiplinTableBody">
+                            <tr><td colspan="4" style="text-align: center;">Masukkan NISN untuk melihat riwayat.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====================================================== -->
+        <!-- Bagian 5: MANAJEMEN SISWA (Sebelumnya Bagian 4)        -->
         <!-- ====================================================== -->
         <div id="siswaSection" class="content-section" style="display: none;">
             <div class="card">
@@ -130,7 +202,7 @@
         </div>
 
         <!-- ====================================================== -->
-        <!-- Bagian 5: MANAJEMEN PENGGUNA                           -->
+        <!-- Bagian 6: MANAJEMEN PENGGUNA (Sebelumnya Bagian 5)       -->
         <!-- ====================================================== -->
         <div id="penggunaSection" class="content-section" style="display: none;">
             <div class="card">
@@ -140,7 +212,6 @@
                 </div>
                 <form id="formPengguna" class="form-container">
                     <input type="hidden" id="formUsernameOld">
-                    <!-- [PERBAIKAN] Menambahkan atribut 'name' yang sesuai dengan backend -->
                     <div class="form-group"><label for="formNamaPengguna">Nama Lengkap</label><input type="text" id="formNamaPengguna" name="nama" placeholder="Contoh: Budi Santoso" required></div>
                     <div class="form-group"><label for="formUsername">Username</label><input type="text" id="formUsername" name="username" placeholder="Username untuk login" required></div>
                     <div class="form-group"><label for="formPassword">Password</label><input type="password" id="formPassword" name="password" placeholder="Isi untuk password baru"><small class="form-helper-text">Kosongkan jika tidak ingin mengubah password.</small></div>
