@@ -79,7 +79,10 @@
         <!-- ====================================================== -->
         <div id="rekapSection" class="content-section" style="display: none;">
             <div class="card">
-                <div class="card-header">Rekapitulasi Presensi Siswa</div>
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Rekapitulasi Presensi Siswa</span>
+                    <button id="refreshRekapButton" class="btn btn-sm btn-secondary">Muat Ulang Data</button>
+                </div>
                 <div class="form-grid">
                     <div class="form-group"><label for="rekapFilterTanggalMulai">Dari Tanggal</label><input type="date" id="rekapFilterTanggalMulai"></div>
                     <div class="form-group"><label for="rekapFilterTanggalSelesai">Sampai Tanggal</label><input type="date" id="rekapFilterTanggalSelesai"></div>
@@ -104,7 +107,10 @@
         <!-- ====================================================== -->
         <div id="siswaSection" class="content-section" style="display: none;">
             <div class="card">
-                <div class="card-header">Manajemen Database Siswa</div>
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Manajemen Database Siswa</span>
+                    <button id="refreshSiswaButton" class="btn btn-sm btn-secondary">Muat Ulang Data</button>
+                </div>
                 <form id="formSiswa" class="form-container">
                     <input type="hidden" id="formNisnOld">
                     <div class="form-group"><label for="formNisn">NISN</label><input type="number" id="formNisn" name="NISN" placeholder="NISN Siswa" required></div>
@@ -128,13 +134,17 @@
         <!-- ====================================================== -->
         <div id="penggunaSection" class="content-section" style="display: none;">
             <div class="card">
-                <div class="card-header">Manajemen Pengguna</div>
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Manajemen Pengguna</span>
+                    <button id="refreshUsersButton" class="btn btn-sm btn-secondary">Muat Ulang Data</button>
+                </div>
                 <form id="formPengguna" class="form-container">
                     <input type="hidden" id="formUsernameOld">
-                    <div class="form-group"><label for="formNamaPengguna">Nama Lengkap</label><input type="text" id="formNamaPengguna" placeholder="Contoh: Budi Santoso" required></div>
-                    <div class="form-group"><label for="formUsername">Username</label><input type="text" id="formUsername" placeholder="Username untuk login" required></div>
-                    <div class="form-group"><label for="formPassword">Password</label><input type="password" id="formPassword" placeholder="Isi untuk password baru"><small class="form-helper-text">Kosongkan jika tidak ingin mengubah password.</small></div>
-                    <div class="form-group"><label for="formPeran">Peran (Role)</label><select id="formPeran" required><option value="Admin">Admin</option><option value="Operator">Operator</option></select></div>
+                    <!-- [PERBAIKAN] Menambahkan atribut 'name' yang sesuai dengan backend -->
+                    <div class="form-group"><label for="formNamaPengguna">Nama Lengkap</label><input type="text" id="formNamaPengguna" name="nama" placeholder="Contoh: Budi Santoso" required></div>
+                    <div class="form-group"><label for="formUsername">Username</label><input type="text" id="formUsername" name="username" placeholder="Username untuk login" required></div>
+                    <div class="form-group"><label for="formPassword">Password</label><input type="password" id="formPassword" name="password" placeholder="Isi untuk password baru"><small class="form-helper-text">Kosongkan jika tidak ingin mengubah password.</small></div>
+                    <div class="form-group"><label for="formPeran">Peran (Role)</label><select id="formPeran" name="peran" required><option value="Admin">Admin</option><option value="Operator">Operator</option></select></div>
                     <div class="form-actions"><button type="submit" id="savePenggunaButton" class="btn btn-accent">Simpan Pengguna</button><button type="button" id="resetPenggunaButton" class="btn btn-secondary">Batal</button></div>
                 </form>
                 <hr style="margin: 2rem 0; border: 0; border-top: 1px solid var(--border-color);">
