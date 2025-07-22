@@ -1,28 +1,29 @@
 /**
  * =================================================================
- * SCRIPT UTAMA FRONTEND - SISTEM PRESENSI QR (DENGAN OPTIMASI REKAP)
+ * SCRIPT UTAMA FRONTEND - SISTEM PRESENSI QR (DENGAN MODUL KEDISIPLINAN)
  * =================================================================
- * @version 2.6 - Rekap Performance Optimization
+ * @version 3.0 - Discipline Module Frontend
  * @author Gemini AI Expert for User
  *
  * PERUBAHAN UTAMA:
- * - [PERFORMA] Fungsi `loadRekapPresensi` diubah menjadi `filterAndRenderRekap` yang sekarang memfilter
- *   data dari cache `AppState.rekap` di sisi frontend, bukan memanggil API.
- * - [PERFORMA] Menambahkan fungsi `loadRawRekapData` untuk mengambil semua data presensi mentah
- *   dari backend sekali saja dan menyimpannya ke cache.
- * - [PERFORMA] Logika klik tab Rekap diubah untuk memanggil `loadRawRekapData` hanya jika cache kosong.
+ * - [FITUR] Menambahkan state `AppState.pelanggaran` untuk cache data master pelanggaran.
+ * - [FITUR] Menambahkan fungsi-fungsi baru untuk menangani semua interaksi di halaman Catatan Disiplin.
+ * - [FITUR] Logika untuk autocomplete/rekomendasi pelanggaran berdasarkan tingkat.
+ * - [FITUR] Logika untuk mencari dan menampilkan riwayat kedisiplinan siswa.
+ * - [UPDATE] Memperbarui `initDashboardPage` dan `setupDashboardListeners` untuk modul baru.
  */
 
 // ====================================================================
 // TAHAP 1: KONFIGURASI GLOBAL DAN STATE APLIKASI
 // ====================================================================
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyrekM1aBNOml5e4vRU0a6dShLHJI50ZP8WDYcRBxUwAZ8wYCYLKMguiI_yUGLV0DxhgA/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyFVZdIrcCV4dUOOiusC_ZSEowpSZH4ZqOPgxj_QV_6cYlU8kx6uZaSPTKVcmEbnv9N1A/exec";
 
 const AppState = {
     siswa: [],
     users: [],
-    rekap: [], // Akan menyimpan data mentah presensi
+    rekap: [],
+    pelanggaran: [], // [BARU] Cache untuk data master pelanggaran
 };
 
 let qrScannerDatang, qrScannerPulang;
@@ -101,7 +102,7 @@ function setupPasswordToggle() {
 // TAHAP 3: FUNGSI-FUNGSI UTAMA
 // ====================================================================
 
-// --- 3.1. OTENTIKASI & SESI ---
+// --- FUNGSI LAMA (Tidak Berubah) ---
 function checkAuthentication() {
     const user = sessionStorage.getItem('loggedInUser');
     if (user) {
@@ -109,8 +110,8 @@ function checkAuthentication() {
         const welcomeEl = document.getElementById('welcomeMessage');
         if (welcomeEl) welcomeEl.textContent = `Selamat Datang, ${userData.nama}!`;
         if (userData.peran && userData.peran.toLowerCase() !== 'admin') {
-            const btn = document.querySelector('button[data-section="penggunaSection"]');
-            if (btn) btn.style.display = 'none';
+            const btnPengguna = document.querySelector('button[data-section="penggunaSection"]');
+            if (btnPengguna) btnPengguna.style.display = 'none';
         }
     } else if (window.location.pathname.includes('dashboard.html')) {
         window.location.href = 'index.html';
@@ -138,8 +139,6 @@ function handleLogout() {
         window.location.href = 'index.html';
     }
 }
-
-// --- 3.2. LOGIKA PRESENSI QR ---
 function startQrScanner(type) {
     if (isScanning[type]) return;
     const scannerId = type === 'datang' ? 'qrScannerDatang' : 'qrScannerPulang';
@@ -190,13 +189,6 @@ async function processQrScan(qrData, type) {
         resultEl.textContent = document.getElementById('statusMessage').textContent;
     }
 }
-
-// --- 3.3. REKAP PRESENSI ---
-
-/**
- * [PERFORMA] Fungsi baru untuk memuat data mentah rekap ke cache.
- * @param {boolean} force - Jika true, akan memaksa fetch dari server.
- */
 async function loadRawRekapData(force = false) {
     if (!force && AppState.rekap.length > 0) {
         console.log("Data rekap sudah ada di cache.");
@@ -209,76 +201,47 @@ async function loadRawRekapData(force = false) {
         console.log(`${AppState.rekap.length} baris data rekap berhasil dimuat ke cache.`);
     }
 }
-
-/**
- * [PERFORMA] Fungsi ini sekarang hanya memfilter data dari cache.
- */
 function filterAndRenderRekap() {
     const startDateStr = document.getElementById('rekapFilterTanggalMulai').value;
     const endDateStr = document.getElementById('rekapFilterTanggalSelesai').value;
     const exportButton = document.getElementById('exportRekapButton');
-
     if (!startDateStr || !endDateStr) return showStatusMessage('Harap pilih rentang tanggal.', 'error');
-    
-    // Set jam agar perbandingan tanggal akurat
     const startDate = new Date(startDateStr);
     startDate.setHours(0, 0, 0, 0);
     const endDate = new Date(endDateStr);
     endDate.setHours(23, 59, 59, 999);
-
-    showLoading(true); // Tampilkan loading untuk proses filter yg mungkin berat
-    
-    // Lakukan filter di frontend dari AppState.rekap
-    // Kolom data mentah: [ID, NISN, Nama, TglDatang, WaktuDatang, WaktuPulang, Status]
-    // Indeks tanggal adalah 3
+    showLoading(true);
     const filteredData = AppState.rekap.filter(row => {
         if (!row[3]) return false;
         const recordDate = new Date(row[3]);
         return recordDate >= startDate && recordDate <= endDate;
     });
-
     renderRekapTable(filteredData);
-    
     exportButton.style.display = filteredData.length > 0 ? 'inline-block' : 'none';
-    
-    // Sembunyikan loading setelah beberapa saat agar UI terlihat merespons
     setTimeout(() => showLoading(false), 100); 
 }
-
 function renderRekapTable(data) {
     const tableBody = document.getElementById('rekapTableBody');
     const siswaMap = AppState.siswa.reduce((map, s) => {
         map[s.NISN] = s.Nama;
         return map;
     }, {});
-
     tableBody.innerHTML = data.length === 0 
         ? '<tr><td colspan="6" style="text-align: center;">Tidak ada data rekap ditemukan untuk rentang tanggal ini.</td></tr>'
         : data.map(row => {
             const namaSiswa = siswaMap[row[1]] || row[2] || "Nama tidak ditemukan";
-            return `<tr>
-                <td data-label="Tanggal">${new Date(row[3]).toLocaleDateString('id-ID', {day:'2-digit', month:'long', year:'numeric'})}</td>
-                <td data-label="NISN">${row[1]}</td>
-                <td data-label="Nama">${namaSiswa}</td>
-                <td data-label="Datang">${row[4] ? new Date(row[4]).toLocaleTimeString('id-ID') : 'N/A'}</td>
-                <td data-label="Pulang">${row[5] ? new Date(row[5]).toLocaleTimeString('id-ID') : 'Belum Pulang'}</td>
-                <td data-label="Status">${row[6]}</td>
-            </tr>`
+            return `<tr><td data-label="Tanggal">${new Date(row[3]).toLocaleDateString('id-ID', {day:'2-digit', month:'long', year:'numeric'})}</td><td data-label="NISN">${row[1]}</td><td data-label="Nama">${namaSiswa}</td><td data-label="Datang">${row[4] ? new Date(row[4]).toLocaleTimeString('id-ID') : 'N/A'}</td><td data-label="Pulang">${row[5] ? new Date(row[5]).toLocaleTimeString('id-ID') : 'Belum Pulang'}</td><td data-label="Status">${row[6]}</td></tr>`
         }).join('');
 }
-
 function exportRekapToExcel() {
     const tableBody = document.getElementById('rekapTableBody');
     if (tableBody.rows.length === 0 || (tableBody.rows.length === 1 && tableBody.rows[0].cells.length === 1)) {
          return showStatusMessage('Tidak ada data untuk diekspor.', 'info');
     }
-    
     const table = document.querySelector("#rekapSection table");
     const wb = XLSX.utils.table_to_book(table, { sheet: "Rekap Presensi" });
     XLSX.writeFile(wb, `Rekap_Presensi_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
-
-// --- 3.4. MANAJEMEN SISWA & QR CODE ---
 async function loadSiswaAndRenderTable(force = false) {
     if (!force && AppState.siswa.length > 0) {
         console.log("Memuat data siswa dari cache...");
@@ -358,8 +321,6 @@ function printQrCode() {
     printWindow.focus();
     setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
 }
-
-// --- 3.5. MANAJEMEN PENGGUNA ---
 async function loadUsers(force = false) {
     if (!force && AppState.users.length > 0) {
         console.log("Memuat data pengguna dari cache...");
@@ -424,6 +385,107 @@ function resetFormPengguna() {
     document.getElementById('formUsernameOld').value = '';
     document.getElementById('savePenggunaButton').textContent = 'Simpan Pengguna';
 }
+
+// --- FUNGSI BARU UNTUK MODUL KEDISIPLINAN ---
+
+async function loadPelanggaranData() {
+    console.log("Memuat data master pelanggaran ke cache...");
+    const result = await makeApiCall(`${SCRIPT_URL}?action=getPelanggaranData`, {}, false);
+    if (result) {
+        AppState.pelanggaran = result.data;
+        console.log(`${AppState.pelanggaran.length} data pelanggaran berhasil dimuat.`);
+        populateDisciplineRecommendations(); // Panggil fungsi untuk mengisi datalist
+    } else {
+        console.error("Gagal memuat data master pelanggaran.");
+    }
+}
+
+function handleNisnDisiplinInput() {
+    const nisn = document.getElementById('nisnDisiplinInput').value;
+    const namaEl = document.getElementById('namaSiswaDisiplin');
+    const siswa = AppState.siswa.find(s => s.NISN == nisn);
+    if (siswa) {
+        namaEl.value = siswa.Nama;
+    } else {
+        namaEl.value = '';
+    }
+}
+
+function populateDisciplineRecommendations() {
+    const tingkatList = document.getElementById('tingkatList');
+    const deskripsiList = document.getElementById('deskripsiList');
+    if (!tingkatList || !deskripsiList) return;
+
+    // Isi Tingkat
+    const semuaTingkat = [...new Set(AppState.pelanggaran.map(p => p.tingkat))];
+    tingkatList.innerHTML = semuaTingkat.map(t => `<option value="${t}"></option>`).join('');
+
+    // Isi Deskripsi (semua pada awalnya)
+    deskripsiList.innerHTML = AppState.pelanggaran.map(p => `<option value="${p.deskripsi}"></option>`).join('');
+}
+
+function handleTingkatChange() {
+    const tingkatInput = document.getElementById('tingkatDisiplinInput').value;
+    const deskripsiList = document.getElementById('deskripsiList');
+    if (!deskripsiList) return;
+
+    let filteredPelanggaran = AppState.pelanggaran;
+    if (tingkatInput) {
+        filteredPelanggaran = AppState.pelanggaran.filter(p => p.tingkat === tingkatInput);
+    }
+    
+    deskripsiList.innerHTML = filteredPelanggaran.map(p => `<option value="${p.deskripsi}"></option>`).join('');
+}
+
+async function handleSubmitDisiplin(event) {
+    event.preventDefault();
+    const form = document.getElementById('formDisiplin');
+    const formData = new FormData(form);
+    formData.append('action', 'saveCatatanDisiplin');
+    
+    const result = await makeApiCall(SCRIPT_URL, { method: 'POST', body: formData });
+
+    if (result) {
+        showStatusMessage(result.message, 'success');
+        form.reset();
+        document.getElementById('namaSiswaDisiplin').value = ''; // Reset nama juga
+    }
+}
+
+async function handleSearchRiwayatDisiplin() {
+    const nisn = document.getElementById('searchNisnDisiplin').value;
+    if (!nisn) {
+        showStatusMessage("Harap masukkan NISN untuk mencari riwayat.", "info");
+        return;
+    }
+    const result = await makeApiCall(`${SCRIPT_URL}?action=getRiwayatDisiplin&nisn=${nisn}`);
+    if (result) {
+        renderRiwayatDisiplinTable(result.data);
+    }
+}
+
+function renderRiwayatDisiplinTable(riwayatArray) {
+    const tableBody = document.getElementById('riwayatDisiplinTableBody');
+    tableBody.innerHTML = ''; // Kosongkan tabel
+    
+    if (riwayatArray.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Tidak ada riwayat kedisiplinan ditemukan untuk siswa ini.</td></tr>';
+        return;
+    }
+
+    tableBody.innerHTML = riwayatArray.map(r => `
+        <tr>
+            <td data-label="Tanggal">${r.tanggal}</td>
+            <td data-label="Tingkat">${r.tingkat}</td>
+            <td data-label="Deskripsi">${r.deskripsi}</td>
+            <td data-label="Poin">${r.poin}</td>
+        </tr>
+    `).join('');
+}
+
+
+// --- FUNGSI INISIALISASI ---
+
 async function loadAllSiswaIntoCache() {
     console.log("Memuat data siswa ke cache...");
     const result = await makeApiCall(`${SCRIPT_URL}?action=getSiswa`, {}, false);
@@ -461,6 +523,10 @@ function setupDashboardListeners() {
                     await loadRawRekapData();
                     filterAndRenderRekap();
                 },
+                // [BARU] Aksi saat tab disiplin di-klik
+                disiplinSection: () => {
+                    // Cukup tampilkan, karena data sudah di-cache saat loading
+                },
                 siswaSection: () => loadSiswaAndRenderTable(),
                 penggunaSection: () => loadUsers(),
             };
@@ -485,12 +551,21 @@ function setupDashboardListeners() {
         document.getElementById('qrModal').style.display = 'none';
     });
     document.getElementById('printQrButton')?.addEventListener('click', printQrCode);
+
+    // [BARU] Event listener untuk halaman Catatan Disiplin
+    document.getElementById('nisnDisiplinInput')?.addEventListener('blur', handleNisnDisiplinInput);
+    document.getElementById('tingkatDisiplinInput')?.addEventListener('input', handleTingkatChange);
+    document.getElementById('formDisiplin')?.addEventListener('submit', handleSubmitDisiplin);
+    document.getElementById('searchDisiplinButton')?.addEventListener('click', handleSearchRiwayatDisiplin);
+
 }
 
 async function initDashboardPage() {
     checkAuthentication();
     setupDashboardListeners();
     await loadAllSiswaIntoCache(); 
+    // [BARU] Muat juga data pelanggaran saat aplikasi dimulai
+    await loadPelanggaranData();
     document.querySelector('.section-nav button[data-section="datangSection"]')?.click();
 }
 
