@@ -158,6 +158,15 @@ main.container {
     max-width: 350px;
 }
 
+.responsive-icon {
+    display: block;
+    max-width: 150px; /* Atur ukuran maksimum logo */
+    width: 100%;     /* Pastikan fleksibel */
+    height: auto;
+    /* TAMBAHKAN BARIS INI: 0 untuk atas/bawah, auto untuk kiri/kanan */
+    margin: 0 auto;
+}
+
 /* -----------------------------------------------------------------
    4. KOMPONEN UMUM (KARTU, FORM, TOMBOL, TABEL)
    ----------------------------------------------------------------- */
